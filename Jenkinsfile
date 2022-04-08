@@ -76,11 +76,11 @@ pipeline {
         stage('Container Scan') {
           steps {
             container('docker-tools') {
-              sh "grype ${APP_NAME} || exit 0"
+              sh "grype ${APP_NAME}"
             }
           }
         }
-        stage('Dockle') {
+        stage('Container Audit') {
           steps {
             container('docker-tools') {
               sh "dockle ${APP_NAME}"
