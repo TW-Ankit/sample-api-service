@@ -47,6 +47,21 @@ pipeline {
             }
           }
         }
+        stage('Dependency Checker') {
+          steps {
+            container('maven') {
+              catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                sh './mvnw org.owasp:dependency-check-maven:check'
+              }
+            }
+          }
+          post {
+            always {
+              archiveArtifacts allowEmptyArchive: true, artifacts: 'target/dependency-check-report.html', fingerprint: true, onlyIfSuccessful: true
+              dependencyCheckPublisher pattern: 'target/dependency-check-report.xml'
+            }
+          }
+        }     
       }
     }
     stage('Package') {
