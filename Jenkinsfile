@@ -71,6 +71,24 @@ pipeline {
         }
       }
     }
+    stage('Artifacts Analysis') {
+      parallel {
+        stage('Container Scan') {
+          steps {
+            container('docker-tools') {
+              sh "grype ${APP_NAME} || exit 0"
+            }
+          }
+        }
+        stage('Dockle') {
+          steps {
+            container('docker-tools') {
+              sh "dockle ${APP_NAME}"
+            }
+          }
+        }
+      }
+    }
     stage('Publish') {
       steps {
         container('docker-tools') {
