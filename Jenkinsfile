@@ -116,26 +116,26 @@ pipeline {
           }
         }
       }
-      // stage('Artifacts Analysis') {
-      //   parallel {
-      //     stage('Container Scan - Grype') {
-      //       steps {
-      //         container('docker-tools') {
-      //           catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE'){
-      //             sh "grype ${APP_NAME}"
-      //           }
-      //         }
-      //       }
-      //     }
-      //     stage('Docker Scan - Dockle') {
-      //       steps {
-      //         container('docker-tools') {
-      //           catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE'){
-      //             sh "dockle ${APP_NAME}"
-      //           }
-      //         }
-      //       }
-      //     }
+      stage('Artifacts Analysis') {
+        parallel {
+          stage('Container Scan - Grype') {
+            steps {
+              container('docker-tools') {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE'){
+                  sh "grype ${APP_NAME}"
+                }
+              }
+            }
+          }
+          stage('Docker Scan - Dockle') {
+            steps {
+              container('docker-tools') {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE'){
+                  sh "dockle ${APP_NAME}"
+                }
+              }
+            }
+          }
       //     stage('Container Scan - Kubesec') {
       //       steps {
       //         container('docker-tools') {
@@ -145,8 +145,8 @@ pipeline {
       //         }
       //       }
       //     }
-      //   }
-      // }
+        }
+      }
       stage('Publish') {
         steps {
           container('docker-tools') {
