@@ -39,16 +39,76 @@ pipeline {
       }
     }
     stage('Static Analysis') {
-      parallel {
-        stage('Unit Tests') {
-          steps {
-            container('maven') {
-              sh './mvnw test'
+        parallel {
+          stage('Unit Tests') {
+            steps {
+              container('maven') {
+                sh './mvnw test'
+              }
             }
           }
+          stage('SCA - Dependency Checker') {
+            steps {
+              container('maven') {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                  sh './mvnw org.owasp:dependency-check-maven:check'
+                }
+              }
+            }
+            post {
+              always {
+                archiveArtifacts allowEmptyArchive: true, artifacts: 'target/dependency-check-report.html', fingerprint: true, onlyIfSuccessful: false
+                dependencyCheckPublisher pattern: 'target/dependency-check-report.xml'
+              }
+            }
+          } 
+          stage('Spot Bugs - SAST') {
+            steps {
+              container('maven') {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                  sh './mvnw compile spotbugs:check'
+                }
+              }
+            }
+            post {
+              always {
+                archiveArtifacts allowEmptyArchive: true, artifacts: 'target/spotbugsXml.xml', fingerprint: true, onlyIfSuccessful: false
+                recordIssues enabledForFailure: true, tool: spotBugs()
+              }
+            }
+          }
+          stage('OSS License Checker') {
+             steps {
+               container('licensefinder') {
+                 catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                   sh '''#!/bin/bash --login
+                         /bin/bash --login
+                         rvm use default
+                         gem install license_finder
+                         license_finder
+                       '''
+                 }
+               }
+             }
+           }
+           stage('SCA - BOM') {
+            steps {
+              container('maven') {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE'){
+                  sh './mvnw org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom'
+                }
+                
+              }
+            }
+            post {
+              success {
+                //dependencyTrackPublisher projectName: 'sample-spring-app', projectVersion: '0.0.1', artifact: 'target/bom.xml', autoCreateProjects: true, synchronous: true
+                archiveArtifacts allowEmptyArchive: true, artifacts: 'target/bom.xml', fingerprint: true, onlyIfSuccessful: true
+              }
+            }
+          } 
         }
       }
-    }
     stage('Package') {
       steps {
         container('docker-tools') {
@@ -56,6 +116,37 @@ pipeline {
         }
       }
     }
+    stage('Artifacts Analysis') {
+        parallel {
+          stage('Container Scan - Grype') {
+            steps {
+              container('docker-tools') {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE'){
+                  sh "grype ${APP_NAME}"
+                }
+              }
+            }
+          }
+          stage('Docker Scan - Dockle') {
+            steps {
+              container('docker-tools') {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE'){
+                  sh "dockle ${APP_NAME}"
+                }
+              }
+            }
+          }
+          stage('Container Scan - Kubesec') {
+            steps {
+              container('docker-tools') {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE'){
+                  sh 'kubesec scan k8s.yaml'
+                }
+              }
+            }
+          }
+        }
+      }
     stage('Publish') {
       steps {
         container('docker-tools') {
