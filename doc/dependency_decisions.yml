@@ -1,0 +1,13 @@
+---
+- - :permit
+  - Apache 2.0
+  - :who: 
+    :why: 
+    :versions: []
+    :when: 2022-09-24 04:56:10.766232000 Z
+- - :permit
+  - MIT
+  - :who: 
+    :why: 
+    :versions: []
+    :when: 2022-09-24 04:56:35.410222000 Z
